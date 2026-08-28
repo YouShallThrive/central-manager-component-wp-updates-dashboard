@@ -35,7 +35,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { api } from "../../convex/_generated/api";
-import { PhpVersionBadge } from "@/components/PhpVersionBadge";
+import { PhpVersionBadge, matchesPhpFilter, PHP_FILTER_OPTIONS, PHP_FILTER_ALL_LABEL } from "@/components/PhpVersionBadge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { Id } from "../../convex/_generated/dataModel";
 
 const STALE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
@@ -122,6 +129,7 @@ export function SitesPage({ siteType = "staging" }: { siteType?: "staging" | "li
 
   const [searchQuery, setSearchQuery] = useState("");
   const [searchMode, setSearchMode] = useState<SearchMode>("sites");
+  const [phpFilter, setPhpFilter] = useState<string>("all");
   const [starting, setStarting] = useState(false);
 
   // Bulk update state
@@ -272,7 +280,13 @@ export function SitesPage({ siteType = "staging" }: { siteType?: "staging" | "li
 
   // ── Sites mode filtering ──
   const filteredSites = sites?.filter(
-    (s: { domain?: string; productionDomain?: string; siteId: number }) => {
+    (s: {
+      domain?: string;
+      productionDomain?: string;
+      siteId: number;
+      phpVersion?: string;
+    }) => {
+      if (!matchesPhpFilter(s.phpVersion, phpFilter)) return false;
       if (!searchQuery) return true;
       const q = searchQuery.toLowerCase();
       return (
@@ -699,7 +713,8 @@ export function SitesPage({ siteType = "staging" }: { siteType?: "staging" | "li
             )}
           </button>
         </div>
-        <div className="relative">
+        <div className="flex items-center gap-3">
+        <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             ref={searchInputRef}
@@ -712,6 +727,20 @@ export function SitesPage({ siteType = "staging" }: { siteType?: "staging" | "li
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"
           />
+        </div>
+        {searchMode === "sites" && (
+          <Select value={phpFilter} onValueChange={setPhpFilter}>
+            <SelectTrigger className="w-[170px]">
+              <SelectValue placeholder="PHP version" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{PHP_FILTER_ALL_LABEL}</SelectItem>
+              {PHP_FILTER_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         </div>
       </div>
 
