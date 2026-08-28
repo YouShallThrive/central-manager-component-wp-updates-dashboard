@@ -36,6 +36,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { api } from "../../convex/_generated/api";
 import { PhpVersionBadge, matchesPhpFilter, PHP_FILTER_OPTIONS, PHP_FILTER_ALL_LABEL } from "@/components/PhpVersionBadge";
+import { RocketStatusBadge, matchesRocketFilter, ROCKET_FILTER_OPTIONS, ROCKET_FILTER_ALL_LABEL } from "@/components/RocketStatusBadge";
 import {
   Select,
   SelectContent,
@@ -116,6 +117,7 @@ export function SitesPage({ siteType = "staging" }: { siteType?: "staging" | "li
   const [searchQuery, setSearchQuery] = useState("");
   const [searchMode, setSearchMode] = useState<SearchMode>("sites");
   const [phpFilter, setPhpFilter] = useState<string>("all");
+  const [rocketFilter, setRocketFilter] = useState<string>("all");
   const [starting, setStarting] = useState(false);
 
   // Bulk update state
@@ -271,8 +273,10 @@ export function SitesPage({ siteType = "staging" }: { siteType?: "staging" | "li
       productionDomain?: string;
       siteId: number;
       phpVersion?: string;
+      rocketStatus?: string;
     }) => {
       if (!matchesPhpFilter(s.phpVersion, phpFilter)) return false;
+      if (!matchesRocketFilter(s.rocketStatus, rocketFilter)) return false;
       if (!searchQuery) return true;
       const q = searchQuery.toLowerCase();
       return (
@@ -718,6 +722,19 @@ export function SitesPage({ siteType = "staging" }: { siteType?: "staging" | "li
             <SelectContent>
               <SelectItem value="all">{PHP_FILTER_ALL_LABEL}</SelectItem>
               {PHP_FILTER_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        {searchMode === "sites" && (
+          <Select value={rocketFilter} onValueChange={setRocketFilter}>
+            <SelectTrigger className="w-[210px]">
+              <SelectValue placeholder="Rocket.net status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{ROCKET_FILTER_ALL_LABEL}</SelectItem>
+              {ROCKET_FILTER_OPTIONS.map((o) => (
                 <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
               ))}
             </SelectContent>

@@ -97,10 +97,47 @@ export const upsertSite = internalMutation({
   },
 });
 
+/**
+ * Deletes one site record. Only ever called from an explicit human action in
+ * the UI — sync never deletes records, it flags them via flagMissing.
+ */
 export const deleteSite = internalMutation({
   args: { id: v.id("sites") },
   handler: async (ctx, { id }) => {
     await ctx.db.delete(id);
+  },
+});
+
+/** Flags a record as missing from Rocket.net (or clears the flag). */
+export const flagMissing = internalMutation({
+  args: { id: v.id("sites"), missing: v.boolean() },
+  returns: v.null(),
+  handler: async (ctx, { id, missing }) => {
+    const site = await ctx.db.get(id);
+    if (!site) return null;
+    if (missing) {
+      if (site.rocketStatus !== "missing") {
+        await ctx.db.patch(id, {
+          rocketStatus: "missing",
+          rocketMissingSince: site.rocketMissingSince ?? Date.now(),
+        });
+      }
+    } else if (site.rocketStatus === "missing") {
+      await ctx.db.patch(id, { rocketStatus: "ok", rocketMissingSince: undefined });
+    }
+    return null;
+  },
+});
+
+/** Public, human-initiated delete of a site record. */
+export const removeSite = mutation({
+  args: { siteId: v.id("sites") },
+  returns: v.null(),
+  handler: async (ctx, { siteId }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    await ctx.db.delete(siteId);
+    return null;
   },
 });
 

@@ -229,12 +229,13 @@ export const _syncSitesBatch = internalAction({
       const validStagingIds = new Set(siteSpecs.map((s) => s.stagingId));
       let removed = 0;
       for (const dbSite of allDbSites) {
-        if (!validStagingIds.has(dbSite.siteId as number)) {
-          await ctx.runMutation(internal.sites.deleteSite, {
-            id: dbSite._id as Id<"sites">,
-          });
-          removed++;
-        }
+        const missing = !validStagingIds.has(dbSite.siteId as number);
+        // Records are flagged, never deleted — only a person removes a site.
+        await ctx.runMutation(internal.sites.flagMissing, {
+          id: dbSite._id as Id<"sites">,
+          missing,
+        });
+        if (missing) removed++;
       }
 
       await ctx.runMutation(internal.sites.upsertSyncProgress, {
@@ -242,7 +243,7 @@ export const _syncSitesBatch = internalAction({
         status: "completed",
         total: siteSpecs.length,
         processed: synced + errors,
-        currentItem: `Done: ${synced} synced, ${errors} errors${removed ? `, ${removed} stale removed` : ""}`,
+        currentItem: `Done: ${synced} synced, ${errors} errors${removed ? `, ${removed} missing from Rocket.net` : ""}`,
       });
 
       // ── Auto-start installed items scanning ──
@@ -413,12 +414,13 @@ export const _syncLiveSitesBatch = internalAction({
       const validSiteIds = new Set(siteSpecs.map((s) => s.siteId));
       let removed = 0;
       for (const dbSite of allDbSites) {
-        if (!validSiteIds.has(dbSite.siteId as number)) {
-          await ctx.runMutation(internal.sites.deleteSite, {
-            id: dbSite._id as Id<"sites">,
-          });
-          removed++;
-        }
+        const missing = !validSiteIds.has(dbSite.siteId as number);
+        // Records are flagged, never deleted — only a person removes a site.
+        await ctx.runMutation(internal.sites.flagMissing, {
+          id: dbSite._id as Id<"sites">,
+          missing,
+        });
+        if (missing) removed++;
       }
 
       await ctx.runMutation(internal.sites.upsertSyncProgress, {
@@ -426,7 +428,7 @@ export const _syncLiveSitesBatch = internalAction({
         status: "completed",
         total: siteSpecs.length,
         processed: synced + errors,
-        currentItem: `Done: ${synced} synced, ${errors} errors${removed ? `, ${removed} stale removed` : ""}`,
+        currentItem: `Done: ${synced} synced, ${errors} errors${removed ? `, ${removed} missing from Rocket.net` : ""}`,
       });
 
       // ── Auto-start installed items scanning for live sites ──

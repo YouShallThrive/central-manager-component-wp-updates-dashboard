@@ -18,6 +18,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { PhpVersionBadge } from "@/components/PhpVersionBadge";
+import { RocketStatusBadge } from "@/components/RocketStatusBadge";
+import { MissingFromRocketNotice } from "@/components/MissingFromRocketNotice";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -260,6 +262,7 @@ export function SiteDetailPage() {
               </h1>
               <Badge variant="outline">staging</Badge>
               <PhpVersionBadge version={site.phpVersion} checkedAt={site.phpCheckedAt} />
+              <RocketStatusBadge status={site.rocketStatus} missingSince={site.rocketMissingSince} />
             </div>
             <p className="text-muted-foreground mt-1 text-sm">
               {site.domain}
@@ -287,12 +290,19 @@ export function SiteDetailPage() {
               ) : (
                 <RefreshCw className="size-3.5" />
               )}
-              {syncing ? "Syncing..." : "Sync Site"}
+              {syncing ? "Syncing..." : "Sync"}
             </Button>
 
           </div>
         </div>
       </div>
+
+      <MissingFromRocketNotice
+        siteId={site._id}
+        status={site.rocketStatus}
+        missingSince={site.rocketMissingSince}
+        domain={site.domain}
+      />
 
       {/* Quick Stats */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
@@ -455,7 +465,7 @@ export function SiteDetailPage() {
               <Globe className="size-8 mx-auto mb-2 opacity-50" />
               <p className="text-sm">No items scanned yet</p>
               <p className="text-xs mt-1">
-                Click &quot;Sync Site&quot; to detect installed plugins &
+                Click &quot;Sync&quot; to detect installed plugins &
                 themes
               </p>
             </div>

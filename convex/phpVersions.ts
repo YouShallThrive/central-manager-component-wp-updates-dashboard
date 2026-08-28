@@ -24,13 +24,27 @@ export const setPhpVersion = internalMutation({
   args: {
     siteId: v.id("sites"),
     phpVersion: v.optional(v.string()),
+    rocketStatus: v.optional(v.string()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.siteId, {
-      phpVersion: args.phpVersion,
-      phpCheckedAt: Date.now(),
-    });
+    const site = await ctx.db.get(args.siteId);
+    const patch: Record<string, unknown> = { phpCheckedAt: Date.now() };
+
+    if (args.rocketStatus === "missing" || args.rocketStatus === "auth_error") {
+      // Unreadable on Rocket.net — keep the last known PHP version and flag
+      // the record. Site records are never deleted automatically.
+      patch.rocketStatus = args.rocketStatus;
+      if (args.rocketStatus === "missing") {
+        patch.rocketMissingSince = site?.rocketMissingSince ?? Date.now();
+      }
+    } else {
+      patch.phpVersion = args.phpVersion;
+      patch.rocketStatus = "ok";
+      patch.rocketMissingSince = undefined;
+    }
+
+    await ctx.db.patch(args.siteId, patch);
     return null;
   },
 });
@@ -63,14 +77,23 @@ export const syncBatch = internalAction({
         await ctx.runMutation(internal.phpVersions.setPhpVersion, {
           siteId: site._id as any,
           phpVersion: version ? String(version) : undefined,
+          rocketStatus: "ok",
         });
         checked++;
       } catch (e) {
         errors++;
-        console.error(
-          `PHP version sync failed for ${site.domain}:`,
-          e instanceof Error ? e.message : String(e),
-        );
+        const message = e instanceof Error ? e.message : String(e);
+        // rocketApiGet throws "Rocket.net GET /path failed (404): ..." — a 404
+        // means the site is gone from Rocket.net, so flag the record instead of
+        // silently failing. Records are never deleted automatically.
+        const status = Number(message.match(/failed \((\d{3})\)/)?.[1] ?? 0);
+        if (status === 404 || status === 401 || status === 403) {
+          await ctx.runMutation(internal.phpVersions.setPhpVersion, {
+            siteId: site._id as any,
+            rocketStatus: status === 404 ? "missing" : "auth_error",
+          });
+        }
+        console.error(`PHP version sync failed for ${site.domain}:`, message);
       }
     }
 
