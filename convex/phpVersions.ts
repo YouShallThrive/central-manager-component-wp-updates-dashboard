@@ -68,6 +68,14 @@ export const syncBatch = internalAction({
     let errors = 0;
 
     for (const site of batch) {
+      if (!site.siteId || site.siteId <= 0) {
+        await ctx.runMutation(internal.phpVersions.setPhpVersion, {
+          siteId: site._id as any,
+          rocketStatus: "missing",
+        });
+        errors++;
+        continue;
+      }
       try {
         const result: Record<string, unknown> = await ctx.runAction(api.viktorTools.rocketGet, {
           path: `/sites/${site.siteId}/settings`,
