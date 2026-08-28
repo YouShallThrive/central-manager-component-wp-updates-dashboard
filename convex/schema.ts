@@ -21,6 +21,7 @@ const schema = defineSchema({
     lastSyncedAt: v.optional(v.number()),
     lastError: v.optional(v.string()),
     phpVersion: v.optional(v.string()),
+    phpCheckedAt: v.optional(v.number()),
     wpVersion: v.optional(v.string()),
   })
     .index("by_site_id", ["siteId"])

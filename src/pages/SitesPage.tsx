@@ -15,6 +15,7 @@ import {
   Search,
   ShoppingBag,
   Upload,
+  Cpu,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
@@ -34,6 +35,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { api } from "../../convex/_generated/api";
+import { PhpVersionBadge } from "@/components/PhpVersionBadge";
 import type { Id } from "../../convex/_generated/dataModel";
 
 const STALE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
@@ -94,6 +96,21 @@ export function SitesPage({ siteType = "staging" }: { siteType?: "staging" | "li
   const resetSync = useMutation(api.sites.resetSyncProgress);
   const createJob = useMutation(api.updateJobs.create);
   const executeUpdate = useAction(api.updateJobs.executeUpdate);
+  const phpSummary = useQuery(api.phpVersions.summary);
+  const syncPhpVersions = useAction(api.phpVersions.syncAll);
+  const [phpSyncing, setPhpSyncing] = useState(false);
+
+  const handlePhpSync = async () => {
+    setPhpSyncing(true);
+    try {
+      const res = await syncPhpVersions({});
+      toast.info(`Checking PHP versions on ${res.sites} sites — running in the background.`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "PHP version sync failed");
+    } finally {
+      setPhpSyncing(false);
+    }
+  };
   const generateUploadUrl = useMutation(api.updateJobs.generateUploadUrl);
 
   // Auto-load all paginated installed items
@@ -524,6 +541,11 @@ export function SitesPage({ siteType = "staging" }: { siteType?: "staging" | "li
             {isLive ? "Production environments synced from Rocket.net" : "Staging environments synced from Rocket.net"}
           </p>
         </div>
+        <div className="flex items-center gap-2">
+        <Button variant="outline" onClick={handlePhpSync} disabled={phpSyncing}>
+          {phpSyncing ? <Loader2 className="size-4 animate-spin" /> : <Cpu className="size-4" />}
+          {phpSyncing ? "Checking..." : "Sync PHP"}
+        </Button>
         <Button onClick={handleSync} disabled={!!isSyncing}>
           {isSyncing ? (
             <Loader2 className="size-4 animate-spin" />
@@ -536,7 +558,43 @@ export function SitesPage({ siteType = "staging" }: { siteType?: "staging" | "li
               : "Syncing..."
             : "Sync Sites"}
         </Button>
+        </div>
       </div>
+
+      {/* PHP Version Summary */}
+      {phpSummary && phpSummary.total > 0 && (
+        <Card>
+          <CardContent className="py-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Cpu className="size-4 text-muted-foreground" />
+                <span className="text-sm font-medium">PHP versions</span>
+                {phpSummary.critical > 0 && (
+                  <Badge variant="outline" className="text-xs border-red-300 text-red-700 bg-red-50 dark:bg-red-950/30">
+                    {phpSummary.critical} end-of-life
+                  </Badge>
+                )}
+              </div>
+              <span className="text-xs text-muted-foreground">
+                {phpSummary.unknown > 0 && `${phpSummary.unknown} not synced · `}
+                {phpSummary.lastCheckedAt
+                  ? `checked ${new Date(phpSummary.lastCheckedAt).toLocaleString()}`
+                  : "never checked — click Sync PHP"}
+              </span>
+            </div>
+            {phpSummary.byVersion.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                {phpSummary.byVersion.map((row: { version: string; count: number }) => (
+                  <div key={row.version} className="flex items-center gap-1.5">
+                    <PhpVersionBadge version={row.version} />
+                    <span className="text-xs tabular-nums text-muted-foreground">×{row.count}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Sync Progress */}
       {activeProgress && (
@@ -688,6 +746,7 @@ export function SitesPage({ siteType = "staging" }: { siteType?: "staging" | "li
                   lastSyncedAt?: number;
                   lastError?: string;
                   phpVersion?: string;
+                  phpCheckedAt?: number;
                   wpVersion?: string;
                 }) => (
                   <Link key={site._id} to={`${siteLinkPrefix}/${site._id}`}>
@@ -719,6 +778,10 @@ export function SitesPage({ siteType = "staging" }: { siteType?: "staging" | "li
                             </div>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
+                            <PhpVersionBadge
+                              version={site.phpVersion}
+                              checkedAt={site.phpCheckedAt}
+                            />
                             {site.lastSyncedAt && (
                               <span className="text-xs text-muted-foreground hidden sm:block">
                                 Synced{" "}

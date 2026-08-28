@@ -17,6 +17,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
+import { PhpVersionBadge } from "@/components/PhpVersionBadge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -258,6 +259,7 @@ export function SiteDetailPage() {
                 {site.productionDomain || site.domain}
               </h1>
               <Badge variant="outline">staging</Badge>
+              <PhpVersionBadge version={site.phpVersion} checkedAt={site.phpCheckedAt} />
             </div>
             <p className="text-muted-foreground mt-1 text-sm">
               {site.domain}
