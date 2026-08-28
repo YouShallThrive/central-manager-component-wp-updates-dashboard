@@ -552,7 +552,7 @@ export function SitesPage({ siteType = "staging" }: { siteType?: "staging" | "li
             ? installedRunning
               ? "Scanning items..."
               : "Syncing..."
-            : "Sync Sites"}
+            : "Sync"}
         </Button>
         </div>
       </div>
@@ -739,7 +739,7 @@ export function SitesPage({ siteType = "staging" }: { siteType?: "staging" | "li
                 <Globe className="size-10 mx-auto mb-3 text-muted-foreground opacity-50" />
                 <p className="text-muted-foreground">
                   {sites.length === 0
-                    ? `No ${isLive ? "live" : "staging"} sites synced yet. Click 'Sync Sites' to pull from Rocket.net.`
+                    ? `No ${isLive ? "live" : "staging"} sites synced yet. Click 'Sync' to pull from Rocket.net.`
                     : "No sites match your search."}
                 </p>
               </CardContent>
