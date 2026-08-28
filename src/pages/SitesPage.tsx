@@ -775,6 +775,8 @@ export function SitesPage({ siteType = "staging" }: { siteType?: "staging" | "li
                   lastError?: string;
                   phpVersion?: string;
                   phpCheckedAt?: number;
+                  rocketStatus?: string;
+                  rocketMissingSince?: number;
                   wpVersion?: string;
                 }) => (
                   <Link key={site._id} to={`${siteLinkPrefix}/${site._id}`}>
@@ -798,6 +800,10 @@ export function SitesPage({ siteType = "staging" }: { siteType?: "staging" | "li
                                 >
                                   {isLive ? "live" : "staging"}
                                 </Badge>
+                                <RocketStatusBadge
+                                  status={site.rocketStatus}
+                                  missingSince={site.rocketMissingSince}
+                                />
                               </div>
                               <p className="text-xs text-muted-foreground truncate mt-0.5">
                                 {site.domain}
