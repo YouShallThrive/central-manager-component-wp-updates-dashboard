@@ -247,6 +247,10 @@ export const _syncSitesBatch = internalAction({
 
       // ── Auto-start installed items scanning ──
       await ctx.scheduler.runAfter(500, internal.sync._startInstalledSync, {});
+
+      // PHP version needs one settings call per site, so sweep in the background
+      // once the site list is up to date.
+      await ctx.scheduler.runAfter(1000, internal.phpVersions.syncBatch, { offset: 0 });
     }
   },
 });
@@ -427,6 +431,10 @@ export const _syncLiveSitesBatch = internalAction({
 
       // ── Auto-start installed items scanning for live sites ──
       await ctx.scheduler.runAfter(500, internal.sync._startLiveInstalledSync, {});
+
+      // PHP version needs one settings call per site, so sweep in the background
+      // once the site list is up to date.
+      await ctx.scheduler.runAfter(1000, internal.phpVersions.syncBatch, { offset: 0 });
     }
   },
 });

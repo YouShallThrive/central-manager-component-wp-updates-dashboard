@@ -104,20 +104,6 @@ export function SitesPage({ siteType = "staging" }: { siteType?: "staging" | "li
   const createJob = useMutation(api.updateJobs.create);
   const executeUpdate = useAction(api.updateJobs.executeUpdate);
   const phpSummary = useQuery(api.phpVersions.summary);
-  const syncPhpVersions = useAction(api.phpVersions.syncAll);
-  const [phpSyncing, setPhpSyncing] = useState(false);
-
-  const handlePhpSync = async () => {
-    setPhpSyncing(true);
-    try {
-      const res = await syncPhpVersions({});
-      toast.info(`Checking PHP versions on ${res.sites} sites — running in the background.`);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "PHP version sync failed");
-    } finally {
-      setPhpSyncing(false);
-    }
-  };
   const generateUploadUrl = useMutation(api.updateJobs.generateUploadUrl);
 
   // Auto-load all paginated installed items
@@ -556,10 +542,6 @@ export function SitesPage({ siteType = "staging" }: { siteType?: "staging" | "li
           </p>
         </div>
         <div className="flex items-center gap-2">
-        <Button variant="outline" onClick={handlePhpSync} disabled={phpSyncing}>
-          {phpSyncing ? <Loader2 className="size-4 animate-spin" /> : <Cpu className="size-4" />}
-          {phpSyncing ? "Checking..." : "Sync PHP"}
-        </Button>
         <Button onClick={handleSync} disabled={!!isSyncing}>
           {isSyncing ? (
             <Loader2 className="size-4 animate-spin" />
@@ -593,7 +575,7 @@ export function SitesPage({ siteType = "staging" }: { siteType?: "staging" | "li
                 {phpSummary.unknown > 0 && `${phpSummary.unknown} not synced · `}
                 {phpSummary.lastCheckedAt
                   ? `checked ${new Date(phpSummary.lastCheckedAt).toLocaleString()}`
-                  : "never checked — click Sync PHP"}
+                  : "never checked — runs with the next Sync"}
               </span>
             </div>
             {phpSummary.byVersion.length > 0 && (
