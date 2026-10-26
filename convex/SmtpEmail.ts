@@ -1,6 +1,6 @@
 import { Email } from "@convex-dev/auth/providers/Email";
 import { APP_NAME } from "./constants";
-import { sendMail } from "./smtp";
+import { internal } from "./_generated/api";
 
 declare const process: { env: Record<string, string | undefined> };
 
@@ -10,22 +10,37 @@ function generateOTP() {
   return String(array[0] % 1000000).padStart(6, "0");
 }
 
-async function sendEmail({
-  email,
-  token,
-  subject,
-  heading,
-  description,
-}: {
-  email: string;
-  token: string;
-  subject: string;
-  heading: string;
-  description: string;
-}) {
+// @convex-dev/auth passes the active action ctx to the email provider's
+// `sendVerificationRequest` as an (untyped) second argument. We only rely on
+// `runAction`.
+type SendCtx = {
+  runAction: (ref: unknown, args: unknown) => Promise<unknown>;
+};
+
+type EmailSendParams = { identifier: string; token: string };
+
+async function sendEmail(
+  {
+    email,
+    token,
+    subject,
+    heading,
+    description,
+  }: {
+    email: string;
+    token: string;
+    subject: string;
+    heading: string;
+    description: string;
+  },
+  ctx: SendCtx | undefined,
+) {
   const from = process.env.SMTP_FROM;
   if (!from) {
     throw new Error("SMTP email not configured: SMTP_FROM is required.");
+  }
+  if (!ctx) {
+    throw new Error("SMTP email not configured: no auth action context.");
   }
 
   const html = `
@@ -44,7 +59,10 @@ async function sendEmail({
     `${heading}\n\n${description}\n\nYour code is: ${token}\n\n` +
     `This code expires in 15 minutes.\n\n---\nThis email was sent by ${APP_NAME}`;
 
-  await sendMail({
+  // The raw SMTP client (node:net/tls/crypto) lives in a "use node" action, so
+  // it runs in the Node.js runtime instead of being inlined into this isolate
+  // auth bundle (which would fail to resolve node:* at deploy time).
+  await ctx.runAction(internal.smtp.sendSmtpMail, {
     to: email,
     from,
     subject: `${subject} - ${APP_NAME}`,
@@ -67,14 +85,20 @@ export const SmtpEmail = Email({
     return generateOTP();
   },
 
-  async sendVerificationRequest({ identifier: email, token }) {
-    await sendEmail({
-      email,
-      token,
-      subject: "Verify your email",
-      heading: "Verify your email",
-      description: "Your verification code is:",
-    });
+  async sendVerificationRequest(
+    { identifier, token }: EmailSendParams,
+    ctx?: SendCtx,
+  ) {
+    await sendEmail(
+      {
+        email: identifier,
+        token,
+        subject: "Verify your email",
+        heading: "Verify your email",
+        description: "Your verification code is:",
+      },
+      ctx,
+    );
   },
 });
 
@@ -90,13 +114,19 @@ export const SmtpPasswordReset = Email({
     return generateOTP();
   },
 
-  async sendVerificationRequest({ identifier: email, token }) {
-    await sendEmail({
-      email,
-      token,
-      subject: "Reset your password",
-      heading: "Reset your password",
-      description: "Your password reset code is:",
-    });
+  async sendVerificationRequest(
+    { identifier, token }: EmailSendParams,
+    ctx?: SendCtx,
+  ) {
+    await sendEmail(
+      {
+        email: identifier,
+        token,
+        subject: "Reset your password",
+        heading: "Reset your password",
+        description: "Your password reset code is:",
+      },
+      ctx,
+    );
   },
 });

@@ -1,6 +1,10 @@
+"use node";
+
 import { randomBytes } from "node:crypto";
 import { connect, Socket } from "node:net";
 import { connect as tlsConnect, type TLSSocket } from "node:tls";
+import { internalAction } from "./_generated/server";
+import { v } from "convex/values";
 
 declare const process: { env: Record<string, string | undefined> };
 
@@ -192,3 +196,21 @@ export async function sendMail({
     socket.destroy();
   }
 }
+
+/**
+ * Node-runtime action wrapper for `sendMail`. The SMTP client uses node:net /
+ * node:tls / node:crypto, which are only available in the Node.js runtime, so
+ * email sending is an action (never inlined into the isolate auth bundle).
+ */
+export const sendSmtpMail = internalAction({
+  args: {
+    to: v.string(),
+    from: v.string(),
+    subject: v.string(),
+    html: v.string(),
+    text: v.string(),
+  },
+  handler: async (_ctx, args) => {
+    await sendMail(args);
+  },
+});
