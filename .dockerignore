@@ -1,0 +1,12 @@
+.git
+node_modules
+dist
+tmp
+test-results
+playwright-report
+__pycache__
+*.pyc
+*.log
+.env
+.env.local
+.env.*.local

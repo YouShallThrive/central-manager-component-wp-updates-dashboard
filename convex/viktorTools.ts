@@ -1,10 +1,9 @@
 /**
- * Viktor Tools — Call Viktor SDK functions from Convex actions.
- * Provides wrappers for Rocket.net API (with auto-auth) and Envato API.
- *
- * Rocket.net calls now go DIRECT to the API with auto-refreshing JWT tokens,
- * bypassing the Viktor gateway (whose stored token can expire). Token is cached
- * in the Convex settings table and auto-refreshed on expiry.
+ * Provider actions — direct API wrappers (no Viktor platform gateway).
+ * Rocket.net (auto-auth JWT), Envato Market, and ScreenshotOne screenshot
+ * capture. Rocket.net calls go DIRECT to the API with auto-refreshing JWT
+ * tokens; token is cached in the Convex settings table and auto-refreshed on
+ * expiry.
  */
 import { v } from "convex/values";
 import { action } from "./_generated/server";
@@ -12,47 +11,12 @@ import { api } from "./_generated/api";
 
 declare const process: { env: Record<string, string | undefined> };
 
-const VIKTOR_API_URL = process.env.VIKTOR_SPACES_API_URL!;
-const PROJECT_NAME = process.env.VIKTOR_SPACES_PROJECT_NAME!;
-const PROJECT_SECRET = process.env.VIKTOR_SPACES_PROJECT_SECRET!;
-
 // Rocket.net direct API config
 const ROCKET_API_BASE = "https://api.rocket.net/v1";
 const ROCKET_USERNAME = process.env.ROCKET_USERNAME;
 const ROCKET_PASSWORD = process.env.ROCKET_PASSWORD;
 const TOKEN_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const TOKEN_REFRESH_BUFFER_MS = 2 * 60 * 60 * 1000; // refresh 2h before expiry
-
-// ── Viktor Spaces Tool Gateway (for non-Rocket tools) ──
-
-async function callTool<T>(
-  role: string,
-  args: Record<string, unknown> = {},
-): Promise<T> {
-  const response = await fetch(
-    `${VIKTOR_API_URL}/api/viktor-spaces/tools/call`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        project_name: PROJECT_NAME,
-        project_secret: PROJECT_SECRET,
-        role,
-        arguments: args,
-      }),
-    },
-  );
-
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
-  }
-
-  const json = await response.json();
-  if (!json.success) {
-    throw new Error(json.error ?? "Tool call failed");
-  }
-  return json.result as T;
-}
 
 // ── Rocket.net Auto-Auth ──
 
@@ -375,32 +339,55 @@ export const envatoGetDownloadUrl = action({
   },
 });
 
-// ── Screenshot via Viktor web agent ──
+// ── Screenshot via ScreenshotOne (direct provider, no platform gateway) ──
 
 export const takeScreenshot = action({
   args: { url: v.string() },
   returns: v.any(),
-  handler: async (_ctx, { url }) => {
-    const result = await callTool<Record<string, unknown>>("use_web_agent", {
-      instructions: `Navigate to ${url}, wait for the page to fully load, then take a screenshot. Return the screenshot URL.`,
+  handler: async (ctx, { url }) => {
+    const apiKey = process.env.SCREENSHOT_API_KEY;
+    if (!apiKey) {
+      throw new Error(
+        "ScreenshotOne not configured: SCREENSHOT_API_KEY is required.",
+      );
+    }
+
+    const params = new URLSearchParams({
+      access_key: apiKey,
       url,
+      format: "png",
+      viewport_width: "1440",
+      viewport_height: "900",
+      delay: "3",
+      block_cookie_banners: "true",
+      block_ads: "true",
     });
-    return result;
-  },
-});
+    const apiUrl = `https://api.screenshotone.com/take?${params.toString()}`;
 
-// ── AI Search (for error checking) ──
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30_000);
+    let imgResp: Response;
+    try {
+      imgResp = await fetch(apiUrl, { signal: controller.signal });
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
-export const quickAiSearch = action({
-  args: { query: v.string() },
-  returns: v.string(),
-  handler: async (_ctx, { query }) => {
-    const result = await callTool<{ search_response: string }>(
-      "quick_ai_search",
-      {
-        search_question: query,
-      },
-    );
-    return result.search_response;
+    if (!imgResp.ok) {
+      const body = await imgResp.text().catch(() => "");
+      throw new Error(
+        `ScreenshotOne failed (${imgResp.status}): ${body.slice(0, 300)}`,
+      );
+    }
+
+    // Store the captured PNG in Convex storage and return its URL, matching
+    // the { screenshot_url } contract the update pipeline reads.
+    const arrayBuf = await imgResp.arrayBuffer();
+    const blob = new Blob([arrayBuf], {
+      type: imgResp.headers.get("content-type") || "image/png",
+    });
+    const storageId = await ctx.storage.store(blob as any);
+    const screenshotUrl = await ctx.storage.getUrl(storageId as any);
+    return { screenshot_url: screenshotUrl };
   },
 });

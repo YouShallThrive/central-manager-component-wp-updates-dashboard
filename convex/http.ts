@@ -13,7 +13,7 @@ http.route({
   method: "POST",
   handler: httpAction(async (ctx, request) => {
     const authHeader = request.headers.get("x-project-secret");
-    const expectedSecret = process.env.VIKTOR_SPACES_PROJECT_SECRET;
+    const expectedSecret = process.env.SSO_SHARED_SECRET;
     if (!authHeader || !expectedSecret || authHeader !== expectedSecret) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
@@ -49,7 +49,7 @@ http.route({
   method: "POST",
   handler: httpAction(async (ctx, request) => {
     const authHeader = request.headers.get("x-project-secret");
-    const expectedSecret = process.env.VIKTOR_SPACES_PROJECT_SECRET;
+    const expectedSecret = process.env.SSO_SHARED_SECRET;
     if (!authHeader || !expectedSecret || authHeader !== expectedSecret) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
@@ -82,7 +82,7 @@ http.route({
   method: "POST",
   handler: httpAction(async (ctx, request) => {
     const authHeader = request.headers.get("x-project-secret");
-    const expectedSecret = process.env.VIKTOR_SPACES_PROJECT_SECRET;
+    const expectedSecret = process.env.SSO_SHARED_SECRET;
     if (!authHeader || !expectedSecret || authHeader !== expectedSecret) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
@@ -113,7 +113,7 @@ http.route({
   method: "POST",
   handler: httpAction(async (ctx, request) => {
     const authHeader = request.headers.get("x-project-secret");
-    const expectedSecret = process.env.VIKTOR_SPACES_PROJECT_SECRET;
+    const expectedSecret = process.env.SSO_SHARED_SECRET;
     if (!authHeader || !expectedSecret || authHeader !== expectedSecret) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,

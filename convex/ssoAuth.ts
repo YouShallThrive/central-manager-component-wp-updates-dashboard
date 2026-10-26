@@ -43,7 +43,7 @@ export const SSOCredentials = ConvexCredentials<DataModel>({
     const token = params.token as string;
     if (!token) throw new Error("No SSO token provided");
 
-    const secret = process.env.SSO_SHARED_SECRET || "66mTA4FYT1TTYfuD6FC7eDHLN15vZC7T3L6DLz3tqbk";
+    const secret = process.env.SSO_SHARED_SECRET;
     if (!secret) throw new Error("SSO not configured");
 
     // Parse token: base64url(payload).signature
