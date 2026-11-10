@@ -1,5 +1,8 @@
 # Convex + Vite + React + shadcn/ui Starter
 
+
+> **Deploy**: push-to-deploy via GitHub Actions. `staging` branch → staging dashboard (https://staging-wp-updates-dashboard.ystvps.com), `main` branch → production (https://wp-updates-dashboard.ystvps.com). Push `staging` to test; merge `staging` → `main` to roll to prod.
+
 A production-ready full-stack web app template.
 
 > **Viktor Spaces projects**: Your project is already configured with Convex, auth, and email. Skip to [Adding New Variables](#adding-new-variables) if you need to add integrations.

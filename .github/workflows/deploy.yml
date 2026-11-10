@@ -1,0 +1,37 @@
+name: Deploy
+
+# Push-to-deploy: staging branch -> staging-wp-updates-dashboard.ystvps.com,
+# main branch -> wp-updates-dashboard.ystvps.com. Runs on the self-hosted runner on the VPS
+# (Coolify's API is loopback-only there). Convex functions deploy straight to
+# the env's self-hosted backend; the frontend image rebuilds through the
+# Coolify builder app and the stack compose is repinned + redeployed by
+# .github/scripts/deploy_env.py.
+
+on:
+  push:
+    branches: [staging, main]
+
+concurrency:
+  group: deploy-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, yst-vps]
+    timeout-minutes: 45
+    env:
+      PATH: /opt/hermes-node/current/bin:/usr/local/bin:/usr/bin:/bin
+      DEPLOY_ENV: ${{ github.ref_name == 'staging' && 'staging' || 'prod' }}
+      CONVEX_SELF_HOSTED_URL: ${{ github.ref_name == 'staging' && 'http://127.0.0.1:6360' || 'http://127.0.0.1:5360' }}
+      CONVEX_SELF_HOSTED_ADMIN_KEY: ${{ github.ref_name == 'staging' && secrets.CONVEX_STAGING_ADMIN_KEY || secrets.CONVEX_PROD_ADMIN_KEY }}
+      COOLIFY_API_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Deploy Convex functions
+        run: |
+          bun install --frozen-lockfile
+          ./node_modules/.bin/convex deploy
+
+      - name: Rebuild frontend image and roll the stack
+        run: python3 .github/scripts/deploy_env.py "$DEPLOY_ENV"
