@@ -47,6 +47,14 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
     Password({
       verify: SmtpEmail,
       reset: SmtpPasswordReset,
+      profile: params => {
+        if (params.flow === "signUp") {
+          throw new Error(
+            "Sign-ups are disabled. Access is granted through the Central Manager.",
+          );
+        }
+        return { email: params.email as string };
+      },
     }),
     SSOCredentials,
     ...(process.env.IS_PREVIEW === "true" ? [TestCredentials] : []),
